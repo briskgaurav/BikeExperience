@@ -47,7 +47,7 @@ export function Model() {
           material={materials["WheelsCables.001"]}
         />
       </group>
-      {/* <mesh
+      <mesh
         castShadow
         receiveShadow
         geometry={nodes.baseParticles.geometry}
@@ -55,7 +55,7 @@ export function Model() {
         position={[-0.248, 0.026, 0]}
         rotation={[0, 0, 3.076]}
         scale={1.466}
-      /> */}
+      />
     </group>
     </group>
 
