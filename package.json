@@ -14,6 +14,7 @@
     "@theatre/core": "^0.6.2",
     "@theatre/r3f": "^0.6.2",
     "@theatre/studio": "^0.6.2",
+    "lenis": "^1.3.17",
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",

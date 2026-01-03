@@ -3,7 +3,7 @@ import React from 'react'
 
 export default function page() {
   return (
-    <div className='h-screen w-screen bg-zinc-900'>
+    <div className='h-[1000vh] w-screen bg-[#4a3c27] relative'>
 
       <Experience />
     </div>
