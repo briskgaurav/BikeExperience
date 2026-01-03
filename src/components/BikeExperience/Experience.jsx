@@ -31,7 +31,7 @@ export default function Experience() {
           fov={50}
         />
         <ambientLight castShadow intensity={10} />
-        {/* <Environment preset="night" environmentIntensity={1} /> */}
+        <Environment preset="night" environmentIntensity={1} />
         <Model />
         <OrbitControls />
       </SheetProvider>

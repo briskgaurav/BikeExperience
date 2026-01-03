@@ -5,7 +5,7 @@ import { Center, useGLTF } from "@react-three/drei";
 import { degToRad } from "three/src/math/MathUtils";
 
 export function Model() {
-  const { nodes, materials } = useGLTF("/Model/BikeScene.glb");
+  const { nodes, materials } = useGLTF("/model/BikeScene.glb");
   
   // Custom material for Object_3 with modified color and roughness
   const customObject3Material = materials.tex_u1_v1.clone();
