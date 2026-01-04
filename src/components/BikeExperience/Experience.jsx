@@ -28,11 +28,15 @@ export default function Experience() {
             <MeshReflectorMaterial
               side={THREE.DoubleSide}
               blur={[300, 100]}
-              mirror={.4}
+              mirror={0.4}
               resolution={2048}
-              mixBlur={.7}
+              mixBlur={0.7}
               // mixStrength={80}
               roughness={1}
+              distortionTexture={
+                "https://as1.ftcdn.net/jpg/04/63/98/24/1000_F_463982482_I310LXkFzX7Bf0RB7ojgVXmmenExRSOL.jpg"
+              }
+              distortion={1.90}
               depthScale={1.2}
               minDepthThreshold={0.4}
               maxDepthThreshold={1.4}
