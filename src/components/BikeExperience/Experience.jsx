@@ -16,7 +16,7 @@ import * as THREE from "three";
 export default function Experience() {
   return (
     <div className="fixed inset-0 w-screen h-screen bg-[#ecedef]">
-      <Canvas>
+      <Canvas gl={{ preserveDrawingBuffer: true }} camera={{ near: 0.1, far: 1000 }}>
         <fog attach="fog" args={["#ecedef", 5, 10]} />
         <Stats />
         {/* <Environment preset="warehouse"  environmentIntensity={1} /> */}
@@ -50,6 +50,7 @@ export default function Experience() {
           <meshBasicMaterial color="black" />
         </mesh>
         {/* <OrbitControls /> */}
+      
       </Canvas>
     </div>
   );
