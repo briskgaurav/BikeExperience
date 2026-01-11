@@ -12,6 +12,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
+::-webkit-scrollbar {
+  display: none;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0c0f11;

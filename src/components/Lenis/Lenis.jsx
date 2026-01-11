@@ -16,7 +16,7 @@ const LenisSmoothScroll = ({ children }) => {
     return () => gsap.ticker.remove(update)
   }, []);
 
-  return <ReactLenis root options={{ autoRaf: false, lerp: 0.02, duration:4,  syncTouch: false}}   ref={lenisRef}>{children}</ReactLenis>
+  return <ReactLenis root options={{ autoRaf: false, lerp: 0.05, duration:1.5,  syncTouch: false}}   ref={lenisRef}>{children}</ReactLenis>
 }
 
 export default LenisSmoothScroll;
