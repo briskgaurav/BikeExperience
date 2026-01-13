@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Archivo } from "next/font/google";
 import "./globals.css";
 import LenisSmoothScroll from "@/components/Lenis/Lenis";
 
@@ -12,6 +12,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const archivo = Archivo({
+  variable: "--font-archivo",
+  subsets: ["latin"],
+});
+
 export const metadata = {
   title: "RIDE THE EXPERIENCE",
   description: "RIDE THE EXPERIENCE",
@@ -22,7 +27,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <LenisSmoothScroll />
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${archivo.variable} antialiased`}
       >
         {children}
       </body>

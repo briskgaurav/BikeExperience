@@ -2,6 +2,7 @@
 import {
   Center,
   ContactShadows,
+  Environment,
   OrbitControls,
   Stage,
 } from "@react-three/drei";
@@ -46,7 +47,7 @@ export default function Chapter1() {
         scrub: true,
         markers:false,
         onUpdate: (self) => {
-          const sequencePosition = self.progress * 2.8;
+          const sequencePosition = self.progress * 3;
           sheet.sequence.position = sequencePosition;
         },
       });
@@ -56,7 +57,7 @@ export default function Chapter1() {
   }, []);
 
   return (
-    <div className="fixed inset-0 w-screen h-screen bg-background flex items-center justify-center">
+    <div className="fixed inset-0 w-full h-screen bg-background flex items-center justify-center">
       <Canvas
         style={{ width: dimensions.width, height: dimensions.height }}
         gl={{ preserveDrawingBuffer: true }}
@@ -64,7 +65,8 @@ export default function Chapter1() {
         resize={{ scroll: false, debounce: { scroll: 50, resize: 0 } }}
       >
         <SheetProvider sheet={sheet}>
-          <Stage adjustCamera={false} />
+          {/* <Stage adjustCamera={false} environment="studio" environmentIntensity={0.5} /> */}
+          <Environment preset="studio" environmentIntensity={0.5} />
           <ContactShadows
             position-y={-0.99}
             opacity={0.5}
