@@ -18,7 +18,8 @@ import { useAspectRatioDimensions } from "@/hooks/useAspectRatioDimensions";
 import { editable as e } from "@theatre/r3f";
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
-import {ScrollTrigger} from "gsap/dist/ScrollTrigger";
+import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
+import Chapter1Track from "./Chapter1Track";
 gsap.registerPlugin(ScrollTrigger);
 
 // Initialize Theatre.js studio in development
@@ -28,7 +29,7 @@ gsap.registerPlugin(ScrollTrigger);
 // }
 
 // Create a Theatre.js project and sheet
-const project = getProject("Chapter1", {state: theatrejson});
+const project = getProject("Chapter1", { state: theatrejson });
 const sheet = project.sheet("F1Experience");
 
 const ASPECT_RATIO = 16 / 9;
@@ -39,21 +40,18 @@ export default function Chapter1() {
 
   useEffect(() => {
     project.ready.then(() => {
-
       ScrollTrigger.create({
         trigger: "#chapter1",
         start: "top top",
         end: "bottom bottom",
         scrub: true,
-        markers:false,
+        markers: false,
         onUpdate: (self) => {
           const sequencePosition = self.progress * 3;
           sheet.sequence.position = sequencePosition;
         },
       });
     });
-
-   
   }, []);
 
   return (
@@ -80,10 +78,7 @@ export default function Chapter1() {
             </e.group>
           </Center>
 
-          <mesh position-y={-0.99} rotation-x={-Math.PI / 2}>
-            <planeGeometry args={[10, 100]} />
-            <meshStandardMaterial color="red" />
-          </mesh>
+          <Chapter1Track />
 
           {/* <OrbitControls /> */}
         </SheetProvider>
