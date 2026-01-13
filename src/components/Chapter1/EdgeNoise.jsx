@@ -85,7 +85,7 @@ const VignetteShader = {
       vec3 color = noisyColor * vignette * uIntensity;
       float alpha = vignette * uIntensity;
       
-      gl_FragColor = vec4(color, alpha);
+      gl_FragColor = vec4(color, .2);
     }
   `
 }
@@ -123,7 +123,7 @@ const VignetteMesh = ({ color, intensity, smoothness }) => {
   )
 }
 
-const EdgeNoise = ({ color = 'darkcyan', intensity = .8, smoothness = 0.4 }) => {
+const EdgeNoise = ({ color = 'darkcyan', intensity = .8, smoothness = 0. }) => {
   return (
     <div className="fixed inset-0 pointer-events-none z-10">
       <Canvas style={{pointerEvents: 'none'}}>
