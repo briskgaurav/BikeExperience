@@ -23,7 +23,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import Chapter1Track from "./Chapter1Track";
 import { degToRad } from "three/src/math/MathUtils";
-import { Bloom, DepthOfField, EffectComposer } from "@react-three/postprocessing";
+import { Bloom, BrightnessContrast, DepthOfField, EffectComposer, ToneMapping } from "@react-three/postprocessing";
 gsap.registerPlugin(ScrollTrigger);
 
 // Initialize Theatre.js studio in development
@@ -63,7 +63,7 @@ export default function Chapter1() {
       <Canvas
         // style={{ width: dimensions.width, height: dimensions.height }}
         gl={{ preserveDrawingBuffer: false }}
-        camera={{ near: 0.1, far: 1000, fov: 50, position: [0, 1.5, 5] }}
+        camera={{ near: 0.1, far: 1000, fov: 50, position: [0, 1, 5] }}
         resize={{ scroll: false, debounce: { scroll: 50, resize: 0 } }}
       >
         <SheetProvider sheet={sheet}>
@@ -146,6 +146,7 @@ export default function Chapter1() {
             </e.group>
           </Center>
 
+          
           <Chapter1Track />
 
           {/* <OrbitControls /> */}
@@ -158,12 +159,11 @@ export default function Chapter1() {
             luminanceSmoothing={0.0}
             intensity={.2}
           />
-          <DepthOfField
-            target={[0, -2, 0]}
-            focalLength={0.02}
-            bokehScale={0.9}
-            height={700}
+          <BrightnessContrast
+            brightness={0.1}
+            contrast={0.4}
           />
+          {/* <ToneMapping fa /> */}
         </EffectComposer>
       </Canvas>
     </div>
