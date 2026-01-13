@@ -117,7 +117,7 @@ export default function Chapter1Layout() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="h-screen tracking-tighter sticky top-0 w-full overflow-hidden">
+    <section ref={sectionRef} className="h-screen z-999 tracking-tighter sticky top-0 w-full overflow-hidden">
       {/* First text */}
       <h1
         ref={firstRef}

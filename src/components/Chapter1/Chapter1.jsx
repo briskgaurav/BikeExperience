@@ -3,8 +3,10 @@ import {
   Center,
   ContactShadows,
   Environment,
+  Lightformer,
   OrbitControls,
   Stage,
+  Stats,
 } from "@react-three/drei";
 import React from "react";
 import { Model } from "./Model";
@@ -20,6 +22,8 @@ import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import Chapter1Track from "./Chapter1Track";
+import { degToRad } from "three/src/math/MathUtils";
+import { Bloom, DepthOfField, EffectComposer } from "@react-three/postprocessing";
 gsap.registerPlugin(ScrollTrigger);
 
 // Initialize Theatre.js studio in development
@@ -58,19 +62,83 @@ export default function Chapter1() {
     <div className="fixed inset-0 w-full h-screen bg-background flex items-center justify-center">
       <Canvas
         // style={{ width: dimensions.width, height: dimensions.height }}
-        gl={{ preserveDrawingBuffer: true }}
+        gl={{ preserveDrawingBuffer: false }}
         camera={{ near: 0.1, far: 1000, fov: 50, position: [0, 1.5, 5] }}
         resize={{ scroll: false, debounce: { scroll: 50, resize: 0 } }}
       >
         <SheetProvider sheet={sheet}>
-          {/* <Stage adjustCamera={false} environment="studio" environmentIntensity={0.5} /> */}
-          <Environment preset="studio" environmentIntensity={0.5} />
-          {/* <ContactShadows
-            position-y={-0.99}
-            opacity={0.5}
-            scale={20}
-            blur={2}
-          /> */}
+          {/* <Stage adjustCamera={false} environment="studio" intensity={.1} /> */}
+          {/* <Environment preset="studio" environmentRotation={[degToRad(5), 0, 0]} environmentIntensity={0.5} /> */}
+
+          <Environment resolution={512} environmentIntensity={1}>
+            {/* Ceiling */}
+            <Lightformer
+              intensity={2}
+              rotation-x={Math.PI / 2}
+              position={[0, 4, -9]}
+              scale={[10, 1, 1]}
+            />
+            <Lightformer
+              intensity={2}
+              rotation-x={Math.PI / 2}
+              position={[0, 4, -6]}
+              scale={[10, 1, 1]}
+            />
+            <Lightformer
+              intensity={2}
+              rotation-x={Math.PI / 2}
+              position={[0, 4, -3]}
+              scale={[10, 1, 1]}
+            />
+            <Lightformer
+              intensity={2}
+              rotation-x={Math.PI / 2}
+              position={[0, 4, 0]}
+              scale={[10, 1, 1]}
+            />
+            <Lightformer
+              intensity={2}
+              rotation-x={Math.PI / 2}
+              position={[0, 4, 3]}
+              scale={[10, 1, 1]}
+            />
+            <Lightformer
+              intensity={2}
+              rotation-x={Math.PI / 2}
+              position={[0, 4, 6]}
+              scale={[10, 1, 1]}
+            />
+            <Lightformer
+              intensity={2}
+              rotation-x={Math.PI / 2}
+              position={[0, 4, 9]}
+              scale={[10, 1, 1]}
+            />
+            {/* Sides */}
+            <Lightformer
+              intensity={2}
+              rotation-y={Math.PI / 2}
+              position={[-50, 2, 0]}
+              scale={[100, 2, 1]}
+            />
+            <Lightformer
+              intensity={2}
+              rotation-y={-Math.PI / 2}
+              position={[50, 2, 0]}
+              scale={[100, 2, 1]}
+            />
+            {/* Key */}
+            <Lightformer
+              form="ring"
+              color="red"
+              intensity={10}
+              scale={2}
+              position={[10, 5, 10]}
+              onUpdate={(self) => self.lookAt(0, 0, 0)}
+            />
+          </Environment>
+
+          <Stats />
 
           <Center>
             <e.group theatreKey="Chapter1Model">
@@ -82,6 +150,21 @@ export default function Chapter1() {
 
           {/* <OrbitControls /> */}
         </SheetProvider>
+
+        <EffectComposer disableNormalPass>
+          <Bloom
+            luminanceThreshold={0}
+            mipmapBlur
+            luminanceSmoothing={0.0}
+            intensity={.2}
+          />
+          <DepthOfField
+            target={[0, -2, 0]}
+            focalLength={0.02}
+            bokehScale={0.9}
+            height={700}
+          />
+        </EffectComposer>
       </Canvas>
     </div>
   );

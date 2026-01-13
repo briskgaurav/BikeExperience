@@ -13,10 +13,10 @@ export const EnergyShaderMaterial = ({ config = {} }) => {
     numLines: 15.0, // Reduced from 25
     flowSpeed: 0.4,
     flowIntensity: 1.5,
-    baselineIntensity: 0.3,
+    baselineIntensity: 0.02,
     lineWidth: 0.12,
-    glowIntensity: 0.1,
-    turbulence: .0,
+    glowIntensity: 0.8,
+    turbulence: 0,
   };
 
   // Merge default config with passed config
