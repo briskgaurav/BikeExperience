@@ -14,8 +14,8 @@ export const EnergyShaderMaterial = ({ config = {} }) => {
     flowSpeed: 0.4,
     flowIntensity: 1.5,
     baselineIntensity: 0.02,
-    lineWidth: 0.12,
-    glowIntensity: 0.8,
+    lineWidth: 0.05,
+    glowIntensity: 0.1,
     turbulence: 0,
   };
 
@@ -40,8 +40,8 @@ export const EnergyShaderMaterial = ({ config = {} }) => {
       precisionHighp={true}
       side={THREE.DoubleSide}
       blending={THREE.AdditiveBlending}
-      depthWrite={true}
-      depthTest={true}
+      depthWrite={false}
+      depthTest={false}
       polygonOffset
       polygonOffsetFactor={1}
       polygonOffsetUnits={1}
