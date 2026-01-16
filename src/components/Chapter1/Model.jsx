@@ -9,24 +9,24 @@ import { degToRad } from 'three/src/math/MathUtils'
 
 // Minimal hologram config for clean aesthetic
 const minimalHologramProps = {
-  hologramColor: "#4af0ff",      // Soft cyan
-  secondaryColor: "#2dd4bf",     // Teal accent
-  accentColor: "#4af0ff",        // Purple highlight
+  hologramColor: "orangered",      // Soft cyan
+  secondaryColor: "orangered",     // Teal accent
+  accentColor: "red",        // Purple highlight
   hologramBrightness: 0.,
   hologramOpacity: 0.4,
-  fresnelOpacity: 0.25,
+  fresnelOpacity: 0.,
   fresnelAmount: 1.2,
   scanlineSize: 2.0,
   scanlineSpeed: 0.45,
   enableGrid: true,
   gridSize: 3.0,
   gridLineWidth: 2.0,
-  enableHexPattern: false,
-  enableDataStreams: false,
+  enableHexPattern: true,
+  enableDataStreams: true,
   enablePulseWaves: true,
   pulseSpeed: 1.0,
-  wireframeIntensity: 0.0,
-  glitchIntensity: 0.0,
+  wireframeIntensity: 0.,
+  glitchIntensity: 0,
   chromaticStrength: 0.,
 }
 

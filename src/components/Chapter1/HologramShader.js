@@ -3,452 +3,322 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
 const vertexShader = `
-  #define STANDARD
-  varying vec3 vViewPosition;
-  #ifdef USE_TRANSMISSION
-  varying vec3 vWorldPosition;
-  #endif
-
   varying vec2 vUv;
-  varying vec4 vPos;
-  varying vec3 vNormalW;
-  varying vec3 vPositionW;
-  varying vec3 vLocalPosition;
-  varying vec3 vBarycentric;
-  varying vec3 vViewDir;
-  
-  #include <common>
-  #include <uv_pars_vertex>
-  #include <envmap_pars_vertex>
-  #include <color_pars_vertex>
-  #include <fog_pars_vertex>
-  #include <morphtarget_pars_vertex>
-  #include <skinning_pars_vertex>
-  #include <logdepthbuf_pars_vertex>
-  #include <clipping_planes_pars_vertex>
-  
-  attribute vec3 barycentric;
+  varying vec3 vPosition;
+  varying vec3 vNormal;
   
   void main() {
-    
-    #include <uv_vertex>
-    #include <color_vertex>
-    #include <morphcolor_vertex>
-  
-    #if defined ( USE_ENVMAP ) || defined ( USE_SKINNING )
-  
-      #include <beginnormal_vertex>
-      #include <morphnormal_vertex>
-      #include <skinbase_vertex>
-      #include <skinnormal_vertex>
-      #include <defaultnormal_vertex>
-  
-    #endif
-  
-    #include <begin_vertex>
-    vLocalPosition = transformed;
-    vBarycentric = barycentric;
-    #include <morphtarget_vertex>
-    #include <skinning_vertex>
-    #include <project_vertex>
-    #include <logdepthbuf_vertex>
-    #include <clipping_planes_vertex>
-  
-    #include <worldpos_vertex>
-    #include <envmap_vertex>
-    #include <fog_vertex>
-    mat4 modelViewProjectionMatrix = projectionMatrix * modelViewMatrix;
     vUv = uv;
-    vPos = projectionMatrix * modelViewMatrix * vec4( transformed, 1.0 );
-    vPositionW = vec3( vec4( transformed, 1.0 ) * modelMatrix);
-    vNormalW = normalize( vec3( vec4( normal, 0.0 ) * modelMatrix ) );
-    vViewDir = normalize(cameraPosition - vPositionW);
-    
-    gl_Position = modelViewProjectionMatrix * vec4( transformed, 1.0 );
+    vPosition = position;
+    vNormal = normalize(normalMatrix * normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `
 
 const fragmentShader = `
   varying vec2 vUv;
-  varying vec3 vPositionW;
-  varying vec4 vPos;
-  varying vec3 vNormalW;
-  varying vec3 vBarycentric;
-  varying vec3 vLocalPosition;
-  varying vec3 vViewDir;
-
+  varying vec3 vPosition;
+  varying vec3 vNormal;
+  
   uniform float time;
-  uniform float fresnelOpacity;
-  uniform float scanlineSize;
-  uniform float fresnelAmount;
-  uniform float signalSpeed;
-  uniform float hologramBrightness;
-  uniform float hologramOpacity;
-  uniform bool blinkFresnelOnly;
-  uniform bool enableBlinking;
-  uniform vec3 hologramColor;
-  uniform vec3 secondaryColor;
-  uniform vec3 accentColor;
-  uniform float glitchIntensity;
-  uniform float scanlineSpeed;
-  uniform float wireframeThickness;
-  uniform float wireframeIntensity;
-  uniform float gridSize;
-  uniform float gridLineWidth;
-  uniform float hexScale;
-  uniform float dataStreamSpeed;
-  uniform float pulseSpeed;
-  uniform float chromaticStrength;
-  uniform bool enableHexPattern;
-  uniform bool enableDataStreams;
-  uniform bool enablePulseWaves;
-  uniform bool enableGrid;
-  uniform float meshMinY;
-  uniform float meshMaxY;
-  
+  uniform float particleDensity;
+  uniform float swirlingSpeed;
+  uniform float dispersalAmount;
+  uniform float noiseScale;
+  uniform float brightness;
+  uniform float opacity;
+  uniform vec3 particleColor;
+  uniform float trailLength;
+  uniform float explosionForce;
+  uniform float vortexStrength;
+  uniform float dustAmount;
+  uniform float grainAmount;
+  uniform float fineDetailScale;
+
   #define PI 3.14159265359
-  #define TAU 6.28318530718
-  
-  // Noise functions
-  float hash(vec2 p) {
+  #define MAX_DENSITY 20.0 // Clamp max density for performance
+
+  // Fast hash - cheaper than full simplex for high frequencies
+  float hash(vec3 p) {
+    p = fract(p * 0.3183099 + .1);
+    p *= 17.0;
+    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+  }
+
+  float hash2(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
   }
-  
-  float hash3(vec3 p) {
-    return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453123);
+
+  // Simplex noise (optimized)
+  vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+  vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+  vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+  vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+
+  float snoise(vec3 v) {
+    const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+    const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+    vec3 i = floor(v + dot(v, C.yyy));
+    vec3 x0 = v - i + dot(i, C.xxx);
+    vec3 g = step(x0.yzx, x0.xyz);
+    vec3 l = 1.0 - g;
+    vec3 i1 = min(g.xyz, l.zxy);
+    vec3 i2 = max(g.xyz, l.zxy);
+    vec3 x1 = x0 - i1 + C.xxx;
+    vec3 x2 = x0 - i2 + C.yyy;
+    vec3 x3 = x0 - D.yyy;
+    i = mod289(i);
+    vec4 p = permute(permute(permute(
+        i.z + vec4(0.0, i1.z, i2.z, 1.0))
+      + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+      + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+    float n_ = 0.142857142857;
+    vec3 ns = n_ * D.wyz - D.xzx;
+    vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+    vec4 x_ = floor(j * ns.z);
+    vec4 y_ = floor(j - 7.0 * x_);
+    vec4 x = x_ *ns.x + ns.yyyy;
+    vec4 y = y_ *ns.x + ns.yyyy;
+    vec4 h = 1.0 - abs(x) - abs(y);
+    vec4 b0 = vec4(x.xy, y.xy);
+    vec4 b1 = vec4(x.zw, y.zw);
+    vec4 s0 = floor(b0)*2.0 + 1.0;
+    vec4 s1 = floor(b1)*2.0 + 1.0;
+    vec4 sh = -step(h, vec4(0.0));
+    vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+    vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+    vec3 p0 = vec3(a0.xy, h.x);
+    vec3 p1 = vec3(a0.zw, h.y);
+    vec3 p2 = vec3(a1.xy, h.z);
+    vec3 p3 = vec3(a1.zw, h.w);
+    vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+    p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+    vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+    m = m * m;
+    return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
   }
-  
-  float noise(float t) {
-    return fract(sin(t * 12.9898) * 43758.5453);
-  }
-  
-  float noise2D(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
+
+  // Optimized FBM with early exit
+  float fbm(vec3 p, int octaves) {
+    float value = 0.0;
+    float amplitude = 0.5;
+    float frequency = 1.0;
     
-    float a = hash(i);
-    float b = hash(i + vec2(1.0, 0.0));
-    float c = hash(i + vec2(0.0, 1.0));
-    float d = hash(i + vec2(1.0, 1.0));
-    
-    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
-  }
-  
-  float flicker(float amt, float time) {
-    return clamp(fract(cos(time) * 43758.5453123), amt, 1.0);
-  }
-  
-  // 4x4 Grid wireframe pattern
-  float gridPattern(vec3 pos, float size, float lineWidth) {
-    vec3 grid = abs(fract(pos * size - 0.5) - 0.5) / fwidth(pos * size);
-    float line = min(min(grid.x, grid.y), grid.z);
-    return 1.0 - min(line, 1.0);
-  }
-  
-  // Enhanced grid with glowing intersections
-  float enhancedGrid(vec3 pos, float size, float lineWidth) {
-    vec3 scaled = pos * size;
-    vec3 grid = abs(fract(scaled - 0.5) - 0.5);
-    vec3 deriv = fwidth(scaled);
-    
-    // Main grid lines
-    vec3 lines = smoothstep(deriv * lineWidth, vec3(0.0), grid);
-    float gridLine = max(max(lines.x, lines.y), lines.z);
-    
-    // Intersection glow (where lines meet)
-    float intersectionX = lines.x * lines.y;
-    float intersectionY = lines.y * lines.z;
-    float intersectionZ = lines.x * lines.z;
-    float intersections = max(max(intersectionX, intersectionY), intersectionZ);
-    
-    return gridLine + intersections * 2.0;
-  }
-  
-  // Hexagonal pattern
-  vec2 hexCoords(vec2 p) {
-    vec2 q = vec2(p.x * 2.0 * 0.5773503, p.y + p.x * 0.5773503);
-    vec2 pi = floor(q);
-    vec2 pf = fract(q);
-    float v = mod(pi.x + pi.y, 3.0);
-    float ca = step(1.0, v);
-    float cb = step(2.0, v);
-    vec2 ma = step(pf.xy, pf.yx);
-    return pi + ca - cb * ma;
-  }
-  
-  float hexPattern(vec2 p, float scale) {
-    p *= scale;
-    vec2 h = hexCoords(p);
-    vec2 hp = p - vec2(h.x * 0.5, h.y + h.x * 0.5);
-    float d = length(hp);
-    float edge = smoothstep(0.5, 0.45, d);
-    float ring = smoothstep(0.48, 0.45, d) - smoothstep(0.45, 0.42, d);
-    return ring * 0.8 + edge * 0.2;
-  }
-  
-  // Data stream effect
-  float dataStream(vec3 pos, float speed) {
-    float stream = 0.0;
-    
-    // Vertical streams
-    float vStream = sin(pos.x * 30.0 + time * speed) * 0.5 + 0.5;
-    vStream *= step(0.95, fract(pos.x * 8.0 + time * 0.1));
-    
-    // Horizontal streams
-    float hStream = sin(pos.y * 30.0 - time * speed * 1.5) * 0.5 + 0.5;
-    hStream *= step(0.95, fract(pos.y * 8.0 - time * 0.15));
-    
-    // Diagonal data flow
-    float dStream = sin((pos.x + pos.y) * 20.0 + time * speed * 2.0) * 0.5 + 0.5;
-    dStream *= step(0.97, fract((pos.x + pos.y) * 5.0 + time * 0.2));
-    
-    stream = max(max(vStream, hStream), dStream);
-    return stream;
-  }
-  
-  // Pulse wave effect
-  float pulseWave(vec3 pos, float speed) {
-    float dist = length(pos);
-    float wave = sin(dist * 10.0 - time * speed) * 0.5 + 0.5;
-    wave *= smoothstep(0.1, 0.0, abs(fract(dist * 2.0 - time * speed * 0.2) - 0.5) - 0.4);
-    return wave;
-  }
-  
-  // Circuit pattern
-  float circuitPattern(vec2 uv, float scale) {
-    vec2 p = uv * scale;
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    
-    float r = hash(i);
-    float circuit = 0.0;
-    
-    // Horizontal line
-    if (r < 0.25) {
-      circuit = step(0.45, f.y) * step(f.y, 0.55);
+    for (int i = 0; i < 3; i++) {
+      if (i >= octaves) break;
+      value += amplitude * snoise(p * frequency);
+      amplitude *= 0.5;
+      frequency *= 2.0;
     }
-    // Vertical line
-    else if (r < 0.5) {
-      circuit = step(0.45, f.x) * step(f.x, 0.55);
-    }
-    // Corner
-    else if (r < 0.75) {
-      circuit = step(0.45, f.x) * step(f.x, 0.55) * step(0.5, f.y);
-      circuit += step(0.45, f.y) * step(f.y, 0.55) * step(f.x, 0.5);
-    }
-    // Node
-    else {
-      float d = length(f - 0.5);
-      circuit = smoothstep(0.15, 0.1, d);
+    return value;
+  }
+
+  // Fast grain using hash instead of expensive simplex at high frequencies
+  float fastGrain(vec3 p) {
+    float g = 0.0;
+    g += hash(p * 10.0) * 0.5;
+    g += hash(p * 20.0) * 0.3;
+    g += hash(p * 40.0) * 0.2;
+    return g;
+  }
+
+  // Adaptive particle density - uses cheaper noise at high densities
+  float adaptiveDenseParticles(vec3 pos, float t, float density) {
+    float particles = 0.0;
+    float swirl = t * swirlingSpeed;
+    
+    // Clamp density to prevent performance issues
+    float safeDensity = min(density, MAX_DENSITY);
+    
+    // Use fewer octaves at high density
+    int octaves = density > 10.0 ? 3 : 4;
+    
+    for (float i = 0.0; i < 4.0; i++) {
+      if (i >= float(octaves)) break;
+      
+      float scale = 1.0 + i * 2.5;
+      vec3 p = pos * scale * safeDensity;
+      
+      float swirlOffset = swirl * (0.3 + i * 0.15);
+      p.x += sin(p.y * 0.3 + swirlOffset) * vortexStrength;
+      p.y += cos(p.x * 0.3 + swirlOffset * 0.8) * vortexStrength;
+      p.z += sin(p.x * 0.2 + p.y * 0.2 + swirlOffset * 0.5) * vortexStrength * 0.5;
+      
+      // Use hash for very high frequencies (cheaper)
+      float n;
+      if (safeDensity > 15.0 && i > 1.0) {
+        n = hash(p + vec3(t * 0.1));
+      } else {
+        n = snoise(p + t * 0.1 * (1.0 + i * 0.3));
+        n = n * 0.5 + 0.5;
+      }
+      
+      n = pow(n, 1.4);
+      particles += n * (1.0 / (1.0 + i * 0.4));
     }
     
-    return circuit;
+    return particles / 2.0;
   }
-  
-  // Edge wireframe from barycentric
-  float edgeFactor() {
-    vec3 d = fwidth(vBarycentric);
-    vec3 a3 = smoothstep(vec3(0.0), d * wireframeThickness, vBarycentric);
-    return min(min(a3.x, a3.y), a3.z);
+
+  // Optimized grain - uses fast hash at high density
+  float optimizedFineGrain(vec3 pos, float t, float density) {
+    vec3 p = pos * fineDetailScale;
+    
+    // Use fast hash-based grain for high densities
+    if (density > 15.0) {
+      return fastGrain(p) * grainAmount;
+    }
+    
+    // Use simplex for lower densities (better quality)
+    float grain = 0.0;
+    grain += snoise(p * 8.0 + t * 0.05) * 0.5;
+    grain += snoise(p * 16.0 - t * 0.03) * 0.35;
+    grain += hash(p * 32.0) * 0.15; // Mix in hash for highest freq
+    return grain;
   }
-  
+
+  float powderCloud(vec3 pos, float t) {
+    vec3 p = pos * noiseScale;
+    p += vec3(sin(t * 0.2) * 0.3, cos(t * 0.15) * 0.3, sin(t * 0.25) * 0.2);
+    
+    float cloud = fbm(p, 3);
+    cloud += fbm(p * 2.0 + t * 0.08, 2) * 0.5;
+    cloud += fbm(p * 4.0 - t * 0.1, 2) * 0.25;
+    
+    // Simplified voronoi approximation using hash
+    float clumps = hash(floor(p * 3.0));
+    cloud *= (1.0 - clumps * 0.3);
+    return cloud;
+  }
+
+  float swirlPattern(vec3 pos, float t) {
+    float swirl = 0.0;
+    vec2 p2d = pos.xy;
+    float angle = atan(p2d.y, p2d.x);
+    float dist = length(p2d);
+    
+    for (float i = 0.0; i < 3.0; i++) {
+      float spiralAngle = angle + dist * (3.0 + i * 1.5) - t * swirlingSpeed * (0.2 + i * 0.1);
+      float spiral = sin(spiralAngle * (2.0 + i)) * 0.5 + 0.5;
+      spiral = pow(spiral, 2.0);
+      spiral *= exp(-dist * (0.8 + i * 0.3));
+      
+      float noise = snoise(pos * (5.0 + i * 4.0) + t * 0.1);
+      spiral *= (0.6 + noise * 0.4);
+      swirl += spiral * (1.0 / (1.0 + i * 0.6));
+    }
+    return swirl;
+  }
+
+  float dispersalTrails(vec3 pos, float t) {
+    float trails = 0.0;
+    
+    for (float i = 0.0; i < 6.0; i++) {
+      float angle = i * PI * 2.0 / 6.0 + t * 0.1;
+      float elevation = sin(i * 1.7) * 0.5;
+      vec3 dir = vec3(cos(angle), sin(angle) * 0.6 + elevation, sin(angle * 0.7) * 0.3);
+      
+      float alongTrail = dot(normalize(pos), dir);
+      float distFromTrail = length(pos - dir * dot(pos, dir));
+      float trail = exp(-distFromTrail * (8.0 - trailLength * 5.0));
+      trail *= smoothstep(-0.2, 0.8, alongTrail);
+      trail *= (0.5 + snoise(pos * 10.0 + dir * t) * 0.5);
+      trails += trail * explosionForce;
+    }
+    return trails;
+  }
+
   void main() {
-    // Use LOCAL position for effects - stays fixed relative to model during rotation
-    float localY = vLocalPosition.y;
-    float normalizedCoord = clamp((localY - meshMinY) / (meshMaxY - meshMinY), 0.0, 1.0);
+    vec3 pos = vPosition;
+    float t = time;
     
-    // === GLITCH SYSTEM ===
-    float glitchTime = floor(time * 8.0);
-    float glitchTrigger = step(0.92, noise(glitchTime));
+    // Calculate distance from center to reduce brightness in middle
+    float distFromCenter = length(pos);
+    float centerFalloff = smoothstep(0.0, 1.5, distFromCenter);
+    centerFalloff = mix(0.5, 1.0, centerFalloff); // Middle gets 50%, edges get 100%
     
-    float distortedCoord = normalizedCoord;
-    if (glitchTrigger > 0.5) {
-      distortedCoord += (noise(glitchTime + normalizedCoord * 20.0) - 0.5) * glitchIntensity * 0.3;
+    // Adaptive quality based on particle density
+    float dense = adaptiveDenseParticles(pos, t, particleDensity);
+    float grain = optimizedFineGrain(pos, t, particleDensity) * grainAmount;
+    float powder = powderCloud(pos, t) * dustAmount;
+    float swirl = swirlPattern(pos, t);
+    float trails = dispersalTrails(pos, t);
+    
+    // Combine
+    float combined = 0.0;
+    combined += dense * 0.35;
+    combined += grain * 0.25;
+    combined += powder * 0.2;
+    combined += swirl * 0.15;
+    combined += trails * 0.15;
+    
+    // Dispersal
+    float dispersal = fbm(pos * dispersalAmount + t * 0.3, 3);
+    dispersal = dispersal * 0.5 + 0.5;
+    combined *= (0.7 + dispersal * 0.5);
+    
+    // Micro detail - use hash at high density for performance
+    float microDetail;
+    if (particleDensity > 15.0) {
+      microDetail = hash(pos * 50.0 + vec3(t * 0.1)) * hash(pos * 100.0);
+    } else {
+      microDetail = snoise(pos * 50.0 + t * 0.1) * 0.5 + 0.5;
+      microDetail *= snoise(pos * 100.0) * 0.5 + 0.5;
     }
+    combined += microDetail * 0.1;
     
-    // === SCANLINE (normalized, runs across whole mesh uniformly) ===
-    // Scanline position cycles from 0 to 1 over time
-    float scanlinePosition = fract(time * scanlineSpeed * 0.5);
-    float scanlineWidth = 0.005 * scanlineSize;
+    // Contrast
+    combined = smoothstep(0.15, 0.85, combined);
+    combined = pow(combined, 0.8);
     
-    // Calculate distance from scanline plane (using normalized Y position)
-    // The scanline sweeps from bottom (0) to top (1) of the mesh
-    float distFromScanline = abs(normalizedCoord - scanlinePosition);
+    // Apply center falloff to reduce middle brightness
+    combined *= centerFalloff;
     
-    // Create sharp scanline that illuminates all fragments at the same Y-level simultaneously
-    float sharpScanline = smoothstep(scanlineWidth, 0.0, distFromScanline);
+    // Clamp combined to 50-60% range for uniform brightness
+    combined = clamp(combined, 0.0, 0.6);
     
-    // Secondary scanline going opposite direction
-    float scanlinePosition2 = fract(-time * scanlineSpeed * 0.3 + 0.5);
-    float distFromScanline2 = abs(normalizedCoord - scanlinePosition2);
-    float sharpScanline2 = smoothstep(scanlineWidth * 0.5, 0.0, distFromScanline2) * 0.5;
+    // Brightness variation - reduced to keep uniform
+    float brightVar = fbm(pos * 2.0 + t * 0.1, 2) * 0.2 + 0.8;
+    combined *= brightVar;
     
-    // === BASE HOLOGRAM COLOR ===
-    vec3 baseColor = hologramColor;
-    float brightness = mix(hologramBrightness, normalizedCoord, 0.5);
+    // Color
+    vec3 color = particleColor;
+    color = mix(color * 0.3, vec3(1.0), combined * 0.7);
+    color = mix(vec3(0.6, 0.65, 0.7), color, combined);
     
-    // === 4x4 GRID WIREFRAME ===
-    float grid = 0.0;
-    if (enableGrid) {
-      grid = enhancedGrid(vLocalPosition, gridSize, gridLineWidth);
-      
-      // Animated grid pulse
-      float gridPulse = sin(time * 2.0) * 0.3 + 0.7;
-      grid *= gridPulse;
-      
-      // Add secondary finer grid
-      float fineGrid = enhancedGrid(vLocalPosition, gridSize * 4.0, gridLineWidth * 0.5) * 0.3;
-      grid += fineGrid;
-    }
+    vec3 finalColor = color * combined * brightness;
     
-    // === HEXAGONAL PATTERN ===
-    float hex = 0.0;
-    if (enableHexPattern) {
-      hex = hexPattern(vUv, hexScale);
-      hex *= sin(time * 1.5 + vUv.y * 10.0) * 0.3 + 0.7;
-    }
+    // Glow - reduced for center
+    float glow = exp(-length(vUv - 0.5) * 1.5) * 0.1 * centerFalloff;
+    finalColor += particleColor * glow * combined;
     
-    // === DATA STREAMS ===
-    float streams = 0.0;
-    if (enableDataStreams) {
-      streams = dataStream(vLocalPosition, dataStreamSpeed);
-    }
+    float alpha = combined * opacity;
     
-    // === PULSE WAVES ===
-    float pulse = 0.0;
-    if (enablePulseWaves) {
-      pulse = pulseWave(vLocalPosition, pulseSpeed);
-    }
+    if (alpha < 0.01) discard;
     
-    // === FRESNEL (EDGE GLOW) ===
-    vec3 viewDirectionW = normalize(cameraPosition - vPositionW);
-    float fresnelEffect = dot(viewDirectionW, vNormalW);
-    fresnelEffect = clamp(fresnelAmount - fresnelEffect, 0.0, fresnelOpacity);
-    
-    // Enhanced rim light with color gradient
-    float rimLight = pow(1.0 - max(dot(vNormalW, viewDirectionW), 0.0), 3.0);
-    
-    // === BLINKING ===
-    float blinkValue = enableBlinking ? 0.6 - signalSpeed : 1.0;
-    float blink = flicker(blinkValue, time * signalSpeed * 0.02);
-    
-    // === TRIANGLE WIREFRAME ===
-    float wireframe = 1.0 - edgeFactor();
-    
-    // === COMPOSE FINAL COLOR ===
-    vec3 finalColor = baseColor * brightness;
-    
-    // Add grid with secondary color
-    finalColor += secondaryColor * grid * 0.8;
-    
-    // Add hex pattern with accent
-    finalColor += accentColor * hex * 0.5;
-    
-    // Add data streams
-    finalColor += hologramColor * streams * 1.5;
-    
-    // Add pulse waves
-    finalColor += secondaryColor * pulse * 0.6;
-    
-    // Add scanlines
-    finalColor += hologramColor * sharpScanline * 3.0;
-    finalColor += secondaryColor * sharpScanline2 * 2.0;
-    
-    // Add fresnel and rim
-    finalColor += (blinkFresnelOnly) 
-      ? fresnelEffect * blink * hologramColor
-      : fresnelEffect * hologramColor;
-    finalColor += rimLight * accentColor * 0.4;
-    
-    // Add triangle wireframe
-    finalColor += hologramColor * wireframe * wireframeIntensity;
-    
-    // Apply overall blink if not fresnel only
-    if (!blinkFresnelOnly) {
-      finalColor *= blink;
-    }
-    
-    // === GLITCH COLOR SHIFT ===
-    if (glitchTrigger > 0.5) {
-      finalColor.r += 0.2 * glitchIntensity;
-      finalColor.b += 0.15 * glitchIntensity;
-      
-      // Chromatic aberration during glitch
-      float aberration = glitchIntensity * 0.1;
-      finalColor.r *= 1.0 + aberration;
-      finalColor.b *= 1.0 - aberration;
-    }
-    
-    // === CHROMATIC ABERRATION (subtle) ===
-    float edgeDist = length(vUv - 0.5) * 2.0;
-    float chromatic = edgeDist * chromaticStrength * 0.05;
-    finalColor.r *= 1.0 + chromatic;
-    finalColor.b *= 1.0 - chromatic;
-    
-    // === VIGNETTE GLOW ===
-    float vignette = 1.0 - edgeDist * 0.3;
-    finalColor *= vignette;
-    
-    // === FINAL OUTPUT ===
-    // Add subtle noise for texture
-    float filmGrain = hash(vUv * time) * 0.03;
-    finalColor += filmGrain;
-    
-    gl_FragColor = vec4(finalColor, hologramOpacity);
+    gl_FragColor = vec4(finalColor, alpha);
   }
 `
 
-const HolographicMaterial = forwardRef(function HolographicMaterial({ 
-  // Core hologram settings
-  fresnelOpacity = .1,
-  fresnelAmount = 0.8,
-  scanlineSize = 1.5,
-  hologramBrightness = .1,
-  signalSpeed = 1.0,
-  hologramColor = "#00ffff",      // Cyan
-  secondaryColor = "#00ffff",     // Magenta
-  accentColor = "#00ffff",        // Yellow
-  enableBlinking = false,
-  blinkFresnelOnly = true,
-  hologramOpacity = .8,
-  
-  // Render settings
-  depthTest = false,
-  depthWrite = true,
+const RichetMaterial = forwardRef(function RichetMaterial({
+  particleDensity = 100.0,
+  particleSize = 1.0,
+  particleColor = "#ffffff",
+  swirlingSpeed = 0.05,
+  vortexStrength = 0.8,
+  dispersalAmount = 3.0,
+  explosionForce = 1.4,
+  trailLength = 0.6,
+  noiseScale = .5,
+  dustAmount = .8,
+  grainAmount = 0.7,
+  fineDetailScale = 5.0,
+  brightness = 10.0,
+  opacity = 1.0,
+  depthTest = true,
+  depthWrite = false,
   blendMode = THREE.AdditiveBlending,
-  side = THREE.FrontSide,
-  
-  // Effect intensities
-  glitchIntensity = 0.0,
-  scanlineSpeed = .5,
-  wireframeThickness = 1.5,
-  wireframeIntensity = 0.,
-  
-  // Grid settings (4x4 wireframe)
-  enableGrid = true,
-  gridSize = 1.5,                  // 4x4 grid
-  gridLineWidth = 1.0,
-  
-  // Hex pattern
-  enableHexPattern = false,
-  hexScale = 8.0,
-  
-  // Data streams
-  enableDataStreams = false,
-  dataStreamSpeed = 3.0,
-  
-  // Pulse waves
-  enablePulseWaves = true,
-  pulseSpeed = 2.0,
-  
-  // Chromatic aberration
-  chromaticStrength = 0.5,
-  
-  // Mesh bounds for normalized scanline (adjust to your model's bounding box)
-  meshMinY = -3,
-  meshMaxY = 3,
-  
+  side = THREE.DoubleSide,
   ...props
 }, ref) {
   const materialRef = useRef()
@@ -465,44 +335,31 @@ const HolographicMaterial = forwardRef(function HolographicMaterial({
       ref={actualRef}
       vertexShader={vertexShader}
       fragmentShader={fragmentShader}
-      transparent
-      depthWrite={depthWrite}
-      depthTest={depthTest}
-      blending={blendMode}
-      side={side}
       uniforms={{
         time: { value: 0 },
-        fresnelOpacity: { value: fresnelOpacity },
-        fresnelAmount: { value: fresnelAmount },
-        scanlineSize: { value: scanlineSize },
-        hologramBrightness: { value: hologramBrightness },
-        signalSpeed: { value: signalSpeed },
-        hologramColor: { value: new THREE.Color(hologramColor) },
-        secondaryColor: { value: new THREE.Color(secondaryColor) },
-        accentColor: { value: new THREE.Color(accentColor) },
-        enableBlinking: { value: enableBlinking },
-        blinkFresnelOnly: { value: blinkFresnelOnly },
-        hologramOpacity: { value: hologramOpacity },
-        glitchIntensity: { value: glitchIntensity },
-        scanlineSpeed: { value: scanlineSpeed },
-        wireframeThickness: { value: wireframeThickness },
-        wireframeIntensity: { value: wireframeIntensity },
-        enableGrid: { value: enableGrid },
-        gridSize: { value: gridSize },
-        gridLineWidth: { value: gridLineWidth },
-        enableHexPattern: { value: enableHexPattern },
-        hexScale: { value: hexScale },
-        enableDataStreams: { value: enableDataStreams },
-        dataStreamSpeed: { value: dataStreamSpeed },
-        enablePulseWaves: { value: enablePulseWaves },
-        pulseSpeed: { value: pulseSpeed },
-        chromaticStrength: { value: chromaticStrength },
-        meshMinY: { value: meshMinY },
-        meshMaxY: { value: meshMaxY },
+        particleDensity: { value: particleDensity },
+        particleSize: { value: particleSize },
+        particleColor: { value: new THREE.Color(particleColor) },
+        swirlingSpeed: { value: swirlingSpeed },
+        vortexStrength: { value: vortexStrength },
+        dispersalAmount: { value: dispersalAmount },
+        explosionForce: { value: explosionForce },
+        trailLength: { value: trailLength },
+        noiseScale: { value: noiseScale },
+        dustAmount: { value: dustAmount },
+        grainAmount: { value: grainAmount },
+        fineDetailScale: { value: fineDetailScale },
+        brightness: { value: brightness },
+        opacity: { value: opacity },
       }}
+      transparent
+      depthTest={depthTest}
+      depthWrite={depthWrite}
+      blending={blendMode}
+      side={side}
       {...props}
     />
   )
 })
 
-export default HolographicMaterial
+export default RichetMaterial

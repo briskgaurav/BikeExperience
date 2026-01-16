@@ -11,7 +11,7 @@ export default function page() {
       <section id="chapter1" className="h-[1000vh] w-screen bg-black">
         <Chapter1 />
         {/* <EdgeNoise /> */}
-        <Chapter1Layout /> 
+        {/* <Chapter1Layout />  */}
       </section>
     </>
   );

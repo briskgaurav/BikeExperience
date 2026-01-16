@@ -7,8 +7,10 @@ import {
   Sparkles,
   Stars,
   Stats,
+  Text,
+  Text3D,
 } from "@react-three/drei";
-import React, { useRef, useMemo } from "react";
+import React, { useRef, useMemo, Suspense } from "react";
 import { Model } from "./Model";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useAspectRatioDimensions } from "@/hooks/useAspectRatioDimensions";
@@ -20,10 +22,13 @@ import {
   Bloom,
   ChromaticAberration,
   EffectComposer,
+  Glitch,
   Noise,
+  SMAA,
+  ToneMapping,
   Vignette,
 } from "@react-three/postprocessing";
-import { BlendFunction } from "postprocessing";
+import { BlendFunction, GlitchMode } from "postprocessing";
 import * as THREE from "three";
 
 gsap.registerPlugin(ScrollTrigger);
@@ -100,7 +105,7 @@ function GradientBackground() {
 function ParticleRing() {
   const pointsRef = useRef();
 
-  const particleCount = 100;
+  const particleCount = 10000;
   const positions = useMemo(() => {
     const pos = new Float32Array(particleCount * 3);
     for (let i = 0; i < particleCount; i++) {
@@ -132,7 +137,7 @@ function ParticleRing() {
       </bufferGeometry>
       <pointsMaterial
         size={0.015}
-        color="#4af0ff"
+        color="orange"
         transparent
         opacity={0.6}
         sizeAttenuation
@@ -159,15 +164,16 @@ export default function Chapter1() {
   }, []);
 
   return (
-    <div className="fixed inset-0 w-full h-screen bg-[#050508] flex items-center justify-center overflow-hidden">
+    <div className="fixed inset-0 w-full h-screen bg-black flex items-center justify-center overflow-hidden">
       <Canvas
+        flat
         gl={{
           preserveDrawingBuffer: false,
           antialias: true,
           alpha: true,
           powerPreference: "high-performance",
         }}
-        dpr={[1, 1]}
+        dpr={1}
         camera={{
           near: 0.1,
           far: 100,
@@ -176,65 +182,65 @@ export default function Chapter1() {
         }}
         resize={{ scroll: false, debounce: { scroll: 50, resize: 0 } }}
       >
-        {/* Background */}
-        {/* <GradientBackground /> */}
-
-        <Stars
-          radius={50}
-          depth={50}
-          count={1000}
-          factor={2}
-          saturation={0}
-          fade
-          speed={0.5}
-        />
-
-        {/* Main model with float animation */}
-        {/* <Float
+        <Float
           speed={1.5}
           rotationIntensity={0.1}
           floatIntensity={0.3}
           floatingRange={[-0.05, 0.05]}
-        > */}
-        <group position={[3, 0, 0]}>
-          <Model />
-        </group>
-        {/* </Float> */}
+        >
+          <Center>
+            <group
+              position={[0, 0, 0]}
+              scale={0.6}
+              rotation={[-degToRad(30), -degToRad(20), degToRad(30)]}
+            >
+              <Model />
+            </group>
+          </Center>
+        </Float>
 
-        {/* Particle effects */}
-        <ParticleRing />
+        <Text
+          // font="/fonts/helvetiker_regular.typeface.json"
+          size={0.5}
+          height={0.1}
+          curveSegments={12}
+          bevelEnabled
+          bevelThickness={0.02}
+          letterSpacing={-0.09}
+          bevelSize={0.02}
+          bevelOffset={0}
+          bevelSegments={5}
+          position={[0, 0, 0]}
+        >
+          LIMITLESS
+          <meshStandardMaterial color="orangered" />
+        </Text>
 
-        {/* Subtle sparkles */}
-        <Sparkles
-          count={50}
-          scale={5}
-          size={1}
-          speed={0.3}
-          opacity={0.3}
-          color="#4af0ff"
-        />
+        <Environment preset="sunset" />
+
         <Stats />
 
-        {/* Post-processing for minimal aesthetic */}
-        <EffectComposer>
-          <Bloom
-            intensity={0.8}
-            luminanceThreshold={0}
-            luminanceSmoothing={0.9}
-            mipmapBlur
-          />
-
-          <Vignette
-            offset={0.3}
-            darkness={0.6}
-            blendFunction={BlendFunction.NORMAL}
-          />
-          <Noise
-            premultiply
-            blendFunction={BlendFunction.SOFT_LIGHT}
-            opacity={0.15}
-          />
-        </EffectComposer>
+        <Suspense fallback={null}>
+          <EffectComposer multisampling={0}>
+            <Glitch
+              delay={[1.5, 3.5]} // min and max glitch delay
+              duration={[0.6, 1.0]} // min and max glitch duration
+              strength={[0.3, 1.0]} // min and max glitch strength
+              active // turn on/off the effect (switches between "mode" prop and GlitchMode.DISABLED)
+              ratio={1}
+            />
+            <SMAA />
+            <ToneMapping
+              blendFunction={BlendFunction.COLOR_BURN} // blend mode
+              adaptive={true} // toggle adaptive luminance map usage
+              resolution={256} // texture resolution of the luminance map
+              middleGrey={1} // middle grey factor
+              maxLuminance={26.0} // maximum luminance
+              averageLuminance={2} // average luminance
+              adaptationRate={2} // luminance adaptation rate
+            />
+          </EffectComposer>
+        </Suspense>
 
         <OrbitControls enableZoom={false} enablePan={false} />
       </Canvas>
