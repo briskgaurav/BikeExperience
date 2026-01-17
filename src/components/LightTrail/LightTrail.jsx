@@ -1,13 +1,8 @@
 "use client";
 
 import React, { useRef, useMemo, useEffect } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useControls } from 'leva';
-import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
-import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
-import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
-
 
 const vertexShader = `
   varying vec2 vUv;
@@ -193,6 +188,7 @@ const displayFragmentShader = `
   }
 `;
 
+// Standalone component that renders to its own canvas (not affected by R3F postprocessing)
 export default function LightTrail({
   colorMix: defaultColorMix = 0.5,
   tint: defaultTint = new THREE.Color(0x0082f7),
@@ -203,12 +199,24 @@ export default function LightTrail({
   drift: defaultDrift = 0.03,
   distortionStrength: defaultDistortionStrength = 0.2,
   distortionRadius: defaultDistortionRadius = 0.1,
-  blendMode: defaultBlendMode = THREE.AdditiveBlending,
 }) {
-  const { viewport, gl } = useThree();
-  const mouse = useRef(new THREE.Vector2(0.5, 0.5));
-  const prevMouse = useRef(new THREE.Vector2(0.5, 0.5));
-  const velocity = useRef(0);
+  const canvasRef = useRef(null);
+  const rendererRef = useRef(null);
+  const sceneRef = useRef(null);
+  const cameraRef = useRef(null);
+  const fboSceneRef = useRef(null);
+  const fboCameraRef = useRef(null);
+  const fboMaterialRef = useRef(null);
+  const displayMaterialRef = useRef(null);
+  const renderTargetARef = useRef(null);
+  const renderTargetBRef = useRef(null);
+  const currentFBORef = useRef(null);
+  const previousFBORef = useRef(null);
+  const mouseRef = useRef(new THREE.Vector2(0.5, 0.5));
+  const prevMouseRef = useRef(new THREE.Vector2(0.5, 0.5));
+  const velocityRef = useRef(0);
+  const animationFrameRef = useRef(null);
+  const startTimeRef = useRef(Date.now());
 
   // Leva controls
   const {
@@ -233,34 +241,48 @@ export default function LightTrail({
     distortionRadius: { value: defaultDistortionRadius, min: 0, max: 0.5, step: 0.01 },
   });
 
-  // Convert tint string to THREE.Color
   const tintColor = useMemo(() => new THREE.Color(tint), [tint]);
 
-  // Create render targets for ping-pong
-  const renderTargetA = useMemo(() => {
-    return new THREE.WebGLRenderTarget(512, 512, {
+  // Initialize Three.js
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    // Create renderer
+    const renderer = new THREE.WebGLRenderer({
+      canvas: canvasRef.current,
+      alpha: true,
+      antialias: false,
+      powerPreference: 'high-performance',
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(1);
+    rendererRef.current = renderer;
+
+    // Create scenes and cameras
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    sceneRef.current = scene;
+    cameraRef.current = camera;
+
+    const fboScene = new THREE.Scene();
+    const fboCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    fboSceneRef.current = fboScene;
+    fboCameraRef.current = fboCamera;
+
+    // Create render targets
+    const rtOptions = {
       minFilter: THREE.LinearFilter,
       magFilter: THREE.LinearFilter,
       format: THREE.RGBAFormat,
       type: THREE.HalfFloatType,
-    });
-  }, []);
+    };
+    renderTargetARef.current = new THREE.WebGLRenderTarget(512, 512, rtOptions);
+    renderTargetBRef.current = new THREE.WebGLRenderTarget(512, 512, rtOptions);
+    currentFBORef.current = renderTargetARef.current;
+    previousFBORef.current = renderTargetBRef.current;
 
-  const renderTargetB = useMemo(() => {
-    return new THREE.WebGLRenderTarget(512, 512, {
-      minFilter: THREE.LinearFilter,
-      magFilter: THREE.LinearFilter,
-      format: THREE.RGBAFormat,
-      type: THREE.HalfFloatType,
-    });
-  }, []);
-
-  const fboScene = useMemo(() => new THREE.Scene(), []);
-  const fboCamera = useMemo(() => new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), []);
-
-  // Shader material for FBO (simulation)
-  const fboMaterial = useMemo(() => {
-    return new THREE.ShaderMaterial({
+    // Create FBO material
+    const fboMaterial = new THREE.ShaderMaterial({
       vertexShader,
       fragmentShader,
       uniforms: {
@@ -268,8 +290,8 @@ export default function LightTrail({
         uMouse: { value: new THREE.Vector2(0.5, 0.5) },
         uPrevMouse: { value: new THREE.Vector2(0.5, 0.5) },
         uTime: { value: 0 },
-        uColor1: { value: tintColor },
-        uColor2: { value: new THREE.Color(0xfffffff) },
+        uColor1: { value: tintColor.clone() },
+        uColor2: { value: new THREE.Color(0xffffff) },
         uColorMix: { value: colorMix },
         uVelocity: { value: 0 },
         uDecay: { value: decay },
@@ -281,107 +303,129 @@ export default function LightTrail({
         uDistortionRadius: { value: distortionRadius },
       },
     });
-  }, [tintColor, colorMix, decay, diffusion, lightningWidth, lightningIntensity, drift, distortionStrength, distortionRadius]);
+    fboMaterialRef.current = fboMaterial;
 
-  // Display material
-  const displayMaterial = useMemo(() => {
-    return new THREE.ShaderMaterial({
+    const fboMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fboMaterial);
+    fboScene.add(fboMesh);
+
+    // Create display material
+    const displayMaterial = new THREE.ShaderMaterial({
       vertexShader,
       fragmentShader: displayFragmentShader,
       uniforms: {
         uTexture: { value: null },
       },
       transparent: true,
-      blending: defaultBlendMode,
-      depthWrite: false,
+      blending: THREE.AdditiveBlending,
     });
-  }, [defaultBlendMode]);
+    displayMaterialRef.current = displayMaterial;
 
-  // FBO mesh
-  const fboMesh = useMemo(() => {
-    const geo = new THREE.PlaneGeometry(2, 2);
-    return new THREE.Mesh(geo, fboMaterial);
-  }, [fboMaterial]);
+    const displayMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), displayMaterial);
+    scene.add(displayMesh);
 
-  useEffect(() => {
-    fboScene.add(fboMesh);
-    
-    // Clear both render targets to black
-    gl.setRenderTarget(renderTargetA);
-    gl.clearColor(0, 0, 0, 1);
-    gl.clear();
-    gl.setRenderTarget(renderTargetB);
-    gl.clearColor(0, 0, 0, 1);
-    gl.clear();
-    gl.setRenderTarget(null);
-    
-    return () => fboScene.remove(fboMesh);
-  }, [fboScene, fboMesh, gl, renderTargetA, renderTargetB]);
+    // Clear render targets
+    renderer.setRenderTarget(renderTargetARef.current);
+    renderer.setClearColor(0x000000, 1);
+    renderer.clear();
+    renderer.setRenderTarget(renderTargetBRef.current);
+    renderer.clear();
+    renderer.setRenderTarget(null);
 
-  // Track mouse movement
-  useEffect(() => {
-    const handleMouseMove = (event) => {
-      prevMouse.current.copy(mouse.current);
-      mouse.current.x = event.clientX / window.innerWidth;
-      mouse.current.y = 1.0 - (event.clientY / window.innerHeight);
-      
-      // Calculate velocity with higher sensitivity
-      const dx = mouse.current.x - prevMouse.current.x;
-      const dy = mouse.current.y - prevMouse.current.y;
-      velocity.current = Math.sqrt(dx * dx + dy * dy) * 15.0;
+    // Handle resize
+    const handleResize = () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
     };
+    window.addEventListener('resize', handleResize);
 
+    // Handle mouse move
+    const handleMouseMove = (event) => {
+      prevMouseRef.current.copy(mouseRef.current);
+      mouseRef.current.x = event.clientX / window.innerWidth;
+      mouseRef.current.y = 1.0 - (event.clientY / window.innerHeight);
+      
+      const dx = mouseRef.current.x - prevMouseRef.current.x;
+      const dy = mouseRef.current.y - prevMouseRef.current.y;
+      velocityRef.current = Math.sqrt(dx * dx + dy * dy) * 15.0;
+    };
     window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+
+    // Animation loop
+    const animate = () => {
+      const time = (Date.now() - startTimeRef.current) / 1000;
+      const fboMat = fboMaterialRef.current;
+      const displayMat = displayMaterialRef.current;
+
+      if (fboMat && displayMat) {
+        // Update uniforms
+        fboMat.uniforms.uTexture.value = previousFBORef.current.texture;
+        fboMat.uniforms.uMouse.value.copy(mouseRef.current);
+        fboMat.uniforms.uPrevMouse.value.copy(prevMouseRef.current);
+        fboMat.uniforms.uTime.value = time;
+        fboMat.uniforms.uVelocity.value = Math.min(velocityRef.current, 8.0);
+
+        // Render to FBO
+        renderer.setRenderTarget(currentFBORef.current);
+        renderer.render(fboSceneRef.current, fboCameraRef.current);
+        renderer.setRenderTarget(null);
+
+        // Update display
+        displayMat.uniforms.uTexture.value = currentFBORef.current.texture;
+
+        // Render to screen
+        renderer.render(sceneRef.current, cameraRef.current);
+
+        // Decay velocity
+        velocityRef.current *= 0.93;
+
+        // Swap FBOs
+        const temp = currentFBORef.current;
+        currentFBORef.current = previousFBORef.current;
+        previousFBORef.current = temp;
+      }
+
+      animationFrameRef.current = requestAnimationFrame(animate);
+    };
+    animate();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('mousemove', handleMouseMove);
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      renderer.dispose();
+      renderTargetARef.current?.dispose();
+      renderTargetBRef.current?.dispose();
+    };
   }, []);
 
-  const currentFBO = useRef(renderTargetA);
-  const previousFBO = useRef(renderTargetB);
-
-  useFrame((state) => {
-    const time = state.clock.elapsedTime;
-
-    // Update FBO shader uniforms (ping-pong technique)
-    fboMaterial.uniforms.uTexture.value = previousFBO.current.texture;
-    fboMaterial.uniforms.uMouse.value.copy(mouse.current);
-    fboMaterial.uniforms.uPrevMouse.value.copy(prevMouse.current);
-    fboMaterial.uniforms.uTime.value = time;
-    fboMaterial.uniforms.uColor1.value.copy(tintColor);
-    fboMaterial.uniforms.uColorMix.value = colorMix;
-    fboMaterial.uniforms.uVelocity.value = Math.min(velocity.current, 8.0);
-    fboMaterial.uniforms.uDecay.value = decay;
-    fboMaterial.uniforms.uDiffusion.value = diffusion;
-    fboMaterial.uniforms.uLightningWidth.value = lightningWidth;
-    fboMaterial.uniforms.uLightningIntensity.value = lightningIntensity;
-    fboMaterial.uniforms.uDrift.value = drift;
-    fboMaterial.uniforms.uDistortionStrength.value = distortionStrength;
-    fboMaterial.uniforms.uDistortionRadius.value = distortionRadius;
-
-    // Render to current FBO (reading from previous)
-    gl.setRenderTarget(currentFBO.current);
-    gl.render(fboScene, fboCamera);
-    gl.setRenderTarget(null);
-
-    // Update display material to show current FBO
-    displayMaterial.uniforms.uTexture.value = currentFBO.current.texture;
-
-    // Decay velocity
-    velocity.current *= 0.93;
-
-    // Swap FBOs (ping-pong)
-    const temp = currentFBO.current;
-    currentFBO.current = previousFBO.current;
-    previousFBO.current = temp;
-  });
+  // Update uniforms when controls change
+  useEffect(() => {
+    if (fboMaterialRef.current) {
+      fboMaterialRef.current.uniforms.uColor1.value.copy(tintColor);
+      fboMaterialRef.current.uniforms.uColorMix.value = colorMix;
+      fboMaterialRef.current.uniforms.uDecay.value = decay;
+      fboMaterialRef.current.uniforms.uDiffusion.value = diffusion;
+      fboMaterialRef.current.uniforms.uLightningWidth.value = lightningWidth;
+      fboMaterialRef.current.uniforms.uLightningIntensity.value = lightningIntensity;
+      fboMaterialRef.current.uniforms.uDrift.value = drift;
+      fboMaterialRef.current.uniforms.uDistortionStrength.value = distortionStrength;
+      fboMaterialRef.current.uniforms.uDistortionRadius.value = distortionRadius;
+    }
+  }, [tintColor, colorMix, decay, diffusion, lightningWidth, lightningIntensity, drift, distortionStrength, distortionRadius]);
 
   return (
-    <>
-      
-      {/* Lightning trail effect */}
-      <mesh>
-        <planeGeometry args={[viewport.width, viewport.height]} />
-        <primitive object={displayMaterial} attach="material" />
-      </mesh>
-    </>
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+        zIndex: 0,
+      }}
+    />
   );
 }
