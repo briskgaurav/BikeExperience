@@ -101,51 +101,6 @@ function GradientBackground() {
   );
 }
 
-// Floating particles ring around model
-function ParticleRing() {
-  const pointsRef = useRef();
-
-  const particleCount = 10000;
-  const positions = useMemo(() => {
-    const pos = new Float32Array(particleCount * 3);
-    for (let i = 0; i < particleCount; i++) {
-      const angle = (i / particleCount) * Math.PI * 2;
-      const radius = 2.5 + Math.random() * 0.5;
-      const height = (Math.random() - 0.5) * 1.5;
-      pos[i * 3] = Math.cos(angle) * radius;
-      pos[i * 3 + 1] = height;
-      pos[i * 3 + 2] = Math.sin(angle) * radius;
-    }
-    return pos;
-  }, []);
-
-  useFrame((state) => {
-    if (pointsRef.current) {
-      pointsRef.current.rotation.y = state.clock.elapsedTime * 0.05;
-    }
-  });
-
-  return (
-    <points ref={pointsRef}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={particleCount}
-          array={positions}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <pointsMaterial
-        size={0.015}
-        color="orange"
-        transparent
-        opacity={0.6}
-        sizeAttenuation
-        blending={THREE.AdditiveBlending}
-      />
-    </points>
-  );
-}
 
 export default function Chapter1() {
   const dimensions = useAspectRatioDimensions(ASPECT_RATIO);
