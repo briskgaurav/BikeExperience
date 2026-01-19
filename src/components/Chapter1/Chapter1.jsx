@@ -2,12 +2,11 @@
 import {
   Center,
   Environment,
-  Float,
   OrbitControls,
   Stats,
   Text,
 } from "@react-three/drei";
-import React, { Suspense } from "react";
+import React, { Suspense, useRef } from "react";
 import { Model } from "./Model";
 import { Canvas } from "@react-three/fiber";
 import { useAspectRatioDimensions } from "@/hooks/useAspectRatioDimensions";
@@ -22,7 +21,6 @@ import {
   ToneMapping,
 } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
-import LightTrail from "../LightTrail/LightTrail";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -30,6 +28,8 @@ const ASPECT_RATIO = 16 / 9;
 
 export default function Chapter1() {
   const dimensions = useAspectRatioDimensions(ASPECT_RATIO);
+  const MainModelRef = useRef(null);
+
 
   useEffect(() => {
     ScrollTrigger.create({
@@ -46,10 +46,9 @@ export default function Chapter1() {
 
   return (
     <div className="fixed inset-0 w-full h-screen bg-black flex items-center justify-center overflow-hidden">
-      {/* Cursor trail - renders to its own canvas behind everything, unaffected by postprocessing */}
-      <LightTrail />
+   
+      {/* <LightTrail /> */}
 
-      {/* Main 3D scene with postprocessing */}
       <Canvas
         flat
         gl={{
@@ -69,44 +68,23 @@ export default function Chapter1() {
         style={{ position: 'relative', zIndex: 1 }}
       >
         {/* Main scene content */}
-        <Float
-          speed={1.5}
-          rotationIntensity={0.1}
-          floatIntensity={0.3}
-          floatingRange={[-0.05, 0.05]}
-        >
-          <Center>
-            <group
-              position={[0, 0, 0]}
-              scale={0.6}
-              rotation={[-degToRad(30), -degToRad(20), degToRad(30)]}
-            >
-              <Model />
-            </group>
-          </Center>
-        </Float>
 
-        <Text
-          size={0.5}
-          height={0.1}
-          curveSegments={12}
-          bevelEnabled
-          bevelThickness={0.02}
-          letterSpacing={-0.09}
-          bevelSize={0.02}
-          bevelOffset={0}
-          bevelSegments={5}
-          position={[0, 0, 0]}
-        >
-          LIMITLESS
-          <meshStandardMaterial color="orangered" />
-        </Text>
+        <Center>
+          <group
+           ref={MainModelRef}
+            position={[0, 0, 0]}
+            scale={0.6}
+            rotation={[-degToRad(50), -degToRad(20), degToRad(20)]}
+            // rotation={[-degToRad(70), -degToRad(0), degToRad(180)]}
+          >
+            <Model MainModelRef={MainModelRef} />
+          </group>
+        </Center>
 
         <Environment preset="sunset" />
 
         <Stats />
 
-        {/* Postprocessing - only affects the 3D scene, not the cursor trail */}
         <Suspense fallback={null}>
           <EffectComposer multisampling={0}>
             <Glitch
@@ -129,7 +107,7 @@ export default function Chapter1() {
           </EffectComposer>
         </Suspense>
 
-        <OrbitControls enableZoom={false} enablePan={false} />
+        {/* <OrbitControls enableZoom={false} enablePan={false} /> */}
       </Canvas>
     </div>
   );

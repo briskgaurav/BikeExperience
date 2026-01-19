@@ -159,8 +159,8 @@ const fragmentShader = `
     float colorVar = fbm(uv * 3.0 + uTime * 0.5) * 0.3;
     vec3 color = mix(uColor1, uColor2, uColorMix + colorVar);
     
-    // Add new lightning and glow with higher intensity
-    trail.rgb += (lightning + glow) * color * 5.0;
+    // Add new lightning and glow with reduced intensity
+    trail.rgb += (lightning + glow) * color * 10.5;
     
     // Clamp to prevent overflow
     trail.rgb = clamp(trail.rgb, 0.0, 3.0);
@@ -183,7 +183,9 @@ const displayFragmentShader = `
         bloom += texture2D(uTexture, vUv + vec2(x, y) * pixelSize) * 0.06;
       }
     }
-    color = mix(color, bloom, 0.2);
+    color = mix(color, bloom, 0.01);
+    // Reduce overall opacity
+    color.rgb *= 0.05;
     gl_FragColor = color;
   }
 `;
@@ -191,7 +193,7 @@ const displayFragmentShader = `
 // Standalone component that renders to its own canvas (not affected by R3F postprocessing)
 export default function LightTrail({
   colorMix: defaultColorMix = 0.5,
-  tint: defaultTint = new THREE.Color(0x0082f7),
+  tint: defaultTint = new THREE.Color(0xf70000),
   decay: defaultDecay = 0.80,
   diffusion: defaultDiffusion = 3.7,
   lightningWidth: defaultLightningWidth = 0.09,
@@ -291,7 +293,7 @@ export default function LightTrail({
         uPrevMouse: { value: new THREE.Vector2(0.5, 0.5) },
         uTime: { value: 0 },
         uColor1: { value: tintColor.clone() },
-        uColor2: { value: new THREE.Color(0xffffff) },
+        uColor2: { value: new THREE.Color(0x000000) },
         uColorMix: { value: colorMix },
         uVelocity: { value: 0 },
         uDecay: { value: decay },

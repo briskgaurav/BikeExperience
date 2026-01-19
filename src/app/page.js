@@ -8,11 +8,12 @@ export default function page() {
   return (
     <>
       <ScrollBarCustom />
-      <section id="chapter1" className="h-[1000vh] w-screen bg-black">
-        <Chapter1 />
-        {/* <EdgeNoise /> */}
-        {/* <Chapter1Layout />  */}
-      </section>
+      <section id="chapter1" className="h-[300vh] relative w-screen bg-black">
+
+
+          <Chapter1 />
+        {/* <Chapter1Layout /> */}
+      </section>  
     </>
   );
 }
