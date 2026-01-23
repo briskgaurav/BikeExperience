@@ -18,7 +18,7 @@ export default function ScrollBarCustom() {
     return (
         <div className='h-1/4  fixed z-[999] top-1/2 right-5 -translate-y-1/2 w-[10px] rounded-full bg-gray-400/10 backdrop-blur-xl'>
             <div 
-                className="bg-[#2D2D2D] rounded-full"
+                className="bg-red rounded-full"
                 style={{
                     width: '100%',
                     height: `${scrollPercentage}%`

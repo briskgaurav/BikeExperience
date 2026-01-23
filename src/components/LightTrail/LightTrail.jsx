@@ -2,7 +2,6 @@
 
 import React, { useRef, useMemo, useEffect } from 'react';
 import * as THREE from 'three';
-import { useControls } from 'leva';
 
 const vertexShader = `
   varying vec2 vUv;
@@ -192,15 +191,15 @@ const displayFragmentShader = `
 
 // Standalone component that renders to its own canvas (not affected by R3F postprocessing)
 export default function LightTrail({
-  colorMix: defaultColorMix = 0.5,
-  tint: defaultTint = new THREE.Color("#aaaaaa"),
-  decay: defaultDecay = 0.80,
-  diffusion: defaultDiffusion = 3.7,
-  lightningWidth: defaultLightningWidth = 0.09,
-  lightningIntensity: defaultLightningIntensity = 2.6,
-  drift: defaultDrift = 0.03,
-  distortionStrength: defaultDistortionStrength = 0.2,
-  distortionRadius: defaultDistortionRadius = 0.1,
+  colorMix = 0.5,
+  tint = new THREE.Color("#aaaaaa"),
+  decay = 0.80,
+  diffusion = 3.7,
+  lightningWidth = 0.09,
+  lightningIntensity = 2.6,
+  drift = 0.03,
+  distortionStrength = 0.2,
+  distortionRadius = 0.1,
 }) {
   const canvasRef = useRef(null);
   const rendererRef = useRef(null);
@@ -220,30 +219,7 @@ export default function LightTrail({
   const animationFrameRef = useRef(null);
   const startTimeRef = useRef(Date.now());
 
-  // Leva controls
-  const {
-    colorMix,
-    tint,
-    decay,
-    diffusion,
-    lightningWidth,
-    lightningIntensity,
-    drift,
-    distortionStrength,
-    distortionRadius,
-  } = useControls('Light Trail', {
-    colorMix: { value: defaultColorMix, min: 0, max: 1, step: 0.01 },
-    tint: { value: `#${defaultTint.getHexString()}` },
-    decay: { value: defaultDecay, min: 0.8, max: 0.99, step: 0.01 },
-    diffusion: { value: defaultDiffusion, min: 0, max: 5, step: 0.1 },
-    lightningWidth: { value: defaultLightningWidth, min: 0.01, max: 0.5, step: 0.01 },
-    lightningIntensity: { value: defaultLightningIntensity, min: 0, max: 10, step: 0.1 },
-    drift: { value: defaultDrift, min: 0, max: 0.05, step: 0.001 },
-    distortionStrength: { value: defaultDistortionStrength, min: 0, max: 1, step: 0.01 },
-    distortionRadius: { value: defaultDistortionRadius, min: 0, max: 0.5, step: 0.01 },
-  });
-
-  const tintColor = useMemo(() => new THREE.Color(tint), [tint]);
+  const tintColor = useMemo(() => tint instanceof THREE.Color ? tint : new THREE.Color(tint), [tint]);
 
   // Initialize Three.js
   useEffect(() => {
@@ -401,7 +377,7 @@ export default function LightTrail({
     };
   }, []);
 
-  // Update uniforms when controls change
+  // Update uniforms when props change
   useEffect(() => {
     if (fboMaterialRef.current) {
       fboMaterialRef.current.uniforms.uColor1.value.copy(tintColor);

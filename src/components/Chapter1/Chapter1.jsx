@@ -22,6 +22,7 @@ import {
 } from "@react-three/postprocessing";
 import { BlendFunction } from "postprocessing";
 import LightTrail from "../LightTrail/LightTrail";
+import Boxy from "./bordershader";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -46,8 +47,9 @@ export default function Chapter1() {
   }, []);
 
   return (
-    <div className="fixed inset-0 w-full h-screen bg-black flex items-center justify-center overflow-hidden">
+    <div className="fixed inset-0 w-full h-screen  flex items-center justify-center overflow-hidden">
    
+      <Boxy />
       <LightTrail />
 
       <Canvas

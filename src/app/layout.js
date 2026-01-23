@@ -1,10 +1,11 @@
 import { Jura, IBM_Plex_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import LenisSmoothScroll from "@/components/Lenis/Lenis";
 
-const jura = Jura({
-  variable: "--font-jura",
-  subsets: ["latin"],
+const hatrik = localFont({
+  src: "./fonts/Hatrik.otf",
+  variable: "--font-hatrik",
 });
 
 const ibmPlexMono = IBM_Plex_Mono({
@@ -23,7 +24,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <LenisSmoothScroll />
       <body
-        className={`${jura.variable} ${ibmPlexMono.variable} antialiased`}
+        className={` ${ibmPlexMono.variable} ${hatrik.variable} antialiased`}
       >
         {children}
       </body>

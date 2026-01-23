@@ -8,7 +8,7 @@ export default function page() {
   return (
     <>
       <ScrollBarCustom />
-      <section id="chapter1" className="h-[300vh] relative w-screen bg-black">
+      <section id="chapter1" className="h-[300vh] relative w-screen ">
         <Chapter1 />
         <Chapter1Layout />
       </section>
