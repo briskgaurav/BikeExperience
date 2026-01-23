@@ -4,7 +4,7 @@ import "./globals.css";
 import LenisSmoothScroll from "@/components/Lenis/Lenis";
 
 const hatrik = localFont({
-  src: "./fonts/Hatrik.otf",
+  src: "./fonts/hatrik.otf",
   variable: "--font-hatrik",
 });
 

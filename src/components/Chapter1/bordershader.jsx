@@ -5,7 +5,6 @@ import * as THREE from 'three'
 const lerp = (start, end, factor) => start + (end - start) * factor
 
 const CONFIG = {
-  spacing: 5.0,
   baseRadius: 0.35,
   scrollBoost: 0.2,
   baseSize: 0.4,
@@ -50,11 +49,12 @@ const EdgeDotsShader = {
       float gridLine = step(gridUvFull.x, gridLineWidth) + step(gridUvFull.y, gridLineWidth);
       gridLine = clamp(gridLine, 0.0, 1.0);
       
-      // Dots
-      float spacing = ${CONFIG.spacing.toFixed(1)};
+      // Dots - use grid spacing so dots appear at grid intersections/centers
+      float spacing = gridSpacing;
       vec2 gridPos = floor(pixelCoord / spacing);
       vec2 gridUv = fract(pixelCoord / spacing);
-      float dist = length(gridUv - 0.5);
+      vec2 gridCenter = gridUv - 0.5;
+      float dist = length(gridCenter);
       
       float radialDist = length(uv - 0.5);
       float effectiveRadius = ${CONFIG.baseRadius.toFixed(1)} + uScrollSpeed * ${CONFIG.scrollBoost.toFixed(1)};
