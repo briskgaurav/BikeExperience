@@ -258,7 +258,7 @@ export default function LightTrail({
       format: THREE.RGBAFormat,
       type: THREE.HalfFloatType,
     };
-    renderTargetARef.current = new THREE.WebGLRenderTarget(512, 512, rtOptions);
+    renderTargetARef.current = new THREE.WebGLRenderTarget(512, 512, rtOptions); 
     renderTargetBRef.current = new THREE.WebGLRenderTarget(512, 512, rtOptions);
     currentFBORef.current = renderTargetARef.current;
     previousFBORef.current = renderTargetBRef.current;
