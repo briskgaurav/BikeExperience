@@ -1,17 +1,16 @@
-import Chapter1 from "@/components/Chapter1/Chapter1";
-import Chapter1Layout from "@/components/Chapter1/Chapter1Layout";
-import EdgeNoise from "@/components/Chapter1/EdgeNoise";
+import Chapter1 from "@/components/Experience/WholeExperince";
+import Chapter1Layout from "@/components/UI/Chapter1Layout";
 import ScrollBarCustom from "@/components/Lenis/Scrollbar";
 import React from "react";
 
 export default function page() {
   return (
     <>
+
       <ScrollBarCustom />
-      <section id="chapter1" className="h-[300vh] relative w-screen ">
-        <Chapter1 />
-        <Chapter1Layout />
-      </section>
+      <Chapter1 />
+      <Chapter1Layout />
+      <ScrollBarCustom />
     </>
   );
 }

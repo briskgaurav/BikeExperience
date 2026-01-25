@@ -1,3 +1,4 @@
+'use client'
 import React, { useRef, useEffect } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
@@ -125,16 +126,16 @@ const EdgeDotsMesh = () => {
 
   useFrame((state) => {
     if (!materialRef.current) return
-    
+
     const deltaTime = state.clock.elapsedTime - lastTimeRef.current
     lastTimeRef.current = state.clock.elapsedTime
-    
+
     materialRef.current.uniforms.uTime.value = state.clock.elapsedTime
-    
+
     const lerpFactor = 1.0 - Math.pow(0.001, deltaTime)
     scrollSpeedRef.current = lerp(scrollSpeedRef.current, targetScrollSpeedRef.current, lerpFactor * 0.3)
     targetScrollSpeedRef.current = lerp(targetScrollSpeedRef.current, 0, lerpFactor * 0.1)
-    
+
     materialRef.current.uniforms.uScrollSpeed.value = scrollSpeedRef.current
   })
 
@@ -157,7 +158,12 @@ const EdgeDotsMesh = () => {
 export default function Boxy() {
   return (
     <div className="fixed inset-0 pointer-events-none z-5">
-      <Canvas style={{ pointerEvents: 'none' }}>
+      <Canvas flat linear dpr={1} gl={{
+        depth: false,
+        stencil: false,
+        antialias: false,
+        powerPreference: 'high-performance'
+      }} style={{ pointerEvents: 'none' }}>
         <EdgeDotsMesh />
       </Canvas>
     </div>

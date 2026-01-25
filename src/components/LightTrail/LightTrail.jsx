@@ -163,8 +163,8 @@ const fragmentShader = `
     
     // Clamp to prevent overflow
     trail.rgb = clamp(trail.rgb, 0.0, 3.0);
-    
-    gl_FragColor = vec4(trail.rgb, 1.0);
+    float alpha = max(max(trail.r, trail.g), trail.b);
+    gl_FragColor = vec4(trail.rgb, alpha);
   }
 `;
 
@@ -184,8 +184,9 @@ const displayFragmentShader = `
     }
     color = mix(color, bloom, 0.01);
     // Reduce overall opacity
-    color.rgb *= 0.05;
-    gl_FragColor = color;
+    color.rgb *= 0.08;
+    float a = max(max(color.r, color.g), color.b);
+    gl_FragColor = vec4(color.rgb, a);
   }
 `;
 
@@ -200,6 +201,7 @@ export default function LightTrail({
   drift = 0.03,
   distortionStrength = 0.2,
   distortionRadius = 0.1,
+  dpr = 1,
 }) {
   const canvasRef = useRef(null);
   const rendererRef = useRef(null);
@@ -233,7 +235,9 @@ export default function LightTrail({
       powerPreference: 'high-performance',
     });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(1);
+    renderer.setPixelRatio(dpr);
+    renderer.setClearColor(0x000000, 0);
+    renderer.setClearAlpha(0);
     rendererRef.current = renderer;
 
     // Create scenes and cameras
@@ -301,9 +305,10 @@ export default function LightTrail({
     const displayMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), displayMaterial);
     scene.add(displayMesh);
 
-    // Clear render targets
+    // Clear render targets with transparent alpha
     renderer.setRenderTarget(renderTargetARef.current);
-    renderer.setClearColor(0x000000, 1);
+    renderer.setClearColor(0x000000, 0);
+    renderer.setClearAlpha(0);
     renderer.clear();
     renderer.setRenderTarget(renderTargetBRef.current);
     renderer.clear();
@@ -320,7 +325,7 @@ export default function LightTrail({
       prevMouseRef.current.copy(mouseRef.current);
       mouseRef.current.x = event.clientX / window.innerWidth;
       mouseRef.current.y = 1.0 - (event.clientY / window.innerHeight);
-      
+
       const dx = mouseRef.current.x - prevMouseRef.current.x;
       const dy = mouseRef.current.y - prevMouseRef.current.y;
       velocityRef.current = Math.sqrt(dx * dx + dy * dy) * 15.0;
@@ -345,6 +350,7 @@ export default function LightTrail({
         renderer.setRenderTarget(currentFBORef.current);
         renderer.render(fboSceneRef.current, fboCameraRef.current);
         renderer.setRenderTarget(null);
+        
 
         // Update display
         displayMat.uniforms.uTexture.value = currentFBORef.current.texture;
@@ -402,7 +408,7 @@ export default function LightTrail({
         width: '100%',
         height: '100%',
         pointerEvents: 'none',
-        zIndex: 0,
+        zIndex: 9999,
       }}
     />
   );
