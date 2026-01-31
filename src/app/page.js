@@ -10,7 +10,6 @@ export default function page() {
       <ScrollBarCustom />
       <Chapter1 />
       <Chapter1Layout />
-      <ScrollBarCustom />
     </>
   );
 }

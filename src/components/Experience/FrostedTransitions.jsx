@@ -227,6 +227,27 @@ export default function FrostedTransition({
                 <LightTrail />
                 <Canvas className="w-full h-full" gl={{ antialias: true, autoClear: false }} dpr={[1, 1]}>
                     {showStats && <Stats />}
+                    <Suspense fallback={null}>
+                        <EffectComposer multisampling={0}>
+                            <Glitch
+                                delay={[1.5, 3.5]}
+                                duration={[0.6, 1.0]}
+                                strength={[0.3, 1.0]}
+                                active
+                                ratio={1}
+                            />
+                            <SMAA />
+                            {/* <ToneMapping
+                                blendFunction={BlendFunction.COLOR_BURN}
+                                adaptive={true}
+                                resolution={256}
+                                middleGrey={1}
+                                maxLuminance={26.0}
+                                averageLuminance={2}
+                                adaptationRate={2}
+                            /> */}
+                        </EffectComposer>
+                    </Suspense>
                     <SceneComposition scenes={scenes} currentSceneIndex={currentSceneIndex} />
                 </Canvas>
             </div>

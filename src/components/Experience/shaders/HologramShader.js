@@ -34,6 +34,9 @@ const fragmentShader = `
   uniform float dustAmount;
   uniform float grainAmount;
   uniform float fineDetailScale;
+  uniform float blackPatchAmount;
+  uniform float blackPatchScale;
+  uniform float contrast;
 
   #define PI 3.14159265359
   #define MAX_DENSITY 20.0 // Clamp max density for performance
@@ -228,6 +231,52 @@ const fragmentShader = `
     return trails;
   }
 
+  // Random black patches function
+  float blackPatches(vec3 pos, float t) {
+    float patches = 0.0;
+    
+    // Multiple layers of noise for organic patches
+    vec3 p1 = pos * blackPatchScale;
+    vec3 p2 = pos * blackPatchScale * 2.3 + vec3(100.0);
+    vec3 p3 = pos * blackPatchScale * 0.7 + vec3(-50.0);
+    
+    // Slow-moving patches
+    float n1 = snoise(p1 + t * 0.05);
+    float n2 = snoise(p2 - t * 0.03);
+    float n3 = snoise(p3 + t * 0.02);
+    
+    // Combine and threshold for sharp patches
+    patches = (n1 + n2 * 0.5 + n3 * 0.3) / 1.8;
+    
+    // Create sharp cutoff for distinct black areas
+    patches = smoothstep(0.2, 0.5, patches);
+    
+    // Add some random hash-based spots
+    float spots = hash(floor(pos * blackPatchScale * 5.0 + t * 0.1));
+    spots = step(0.7, spots);
+    patches = max(patches, spots * 0.5);
+    
+    return patches;
+  }
+
+  // Color burn blend mode
+  vec3 colorBurn(vec3 base, vec3 blend) {
+    return vec3(
+      blend.r == 0.0 ? 0.0 : max(0.0, 1.0 - (1.0 - base.r) / blend.r),
+      blend.g == 0.0 ? 0.0 : max(0.0, 1.0 - (1.0 - base.g) / blend.g),
+      blend.b == 0.0 ? 0.0 : max(0.0, 1.0 - (1.0 - base.b) / blend.b)
+    );
+  }
+
+  // Contrast adjustment function
+  float applyContrast(float value, float contrastAmount) {
+    // S-curve contrast using smoothstep-like function
+    float midpoint = 0.5;
+    value = value - midpoint;
+    value = sign(value) * pow(abs(value) * 2.0, contrastAmount) * 0.5;
+    return clamp(value + midpoint, 0.0, 1.0);
+  }
+
   void main() {
     vec3 pos = vPosition;
     float t = time;
@@ -267,32 +316,43 @@ const fragmentShader = `
     }
     combined += microDetail * 0.1;
     
-    // Contrast
-    combined = smoothstep(0.15, 0.85, combined);
-    combined = pow(combined, 0.8);
+    // Enhanced contrast with tighter smoothstep range
+    combined = smoothstep(0.1, 0.9, combined);
+    combined = pow(combined, 0.7);
+    
+    // Apply user-controlled contrast
+    combined = applyContrast(combined, contrast);
     
     // Apply center falloff to reduce middle brightness
     combined *= centerFalloff;
-    
-    // Clamp combined to 50-60% range for uniform brightness
-    combined = clamp(combined, 0.0, 0.6);
     
     // Brightness variation - reduced to keep uniform
     float brightVar = fbm(pos * 2.0 + t * 0.1, 2) * 0.2 + 0.8;
     combined *= brightVar;
     
-    // Color
+    // Color with enhanced contrast
     vec3 color = particleColor;
-    color = mix(color * 0.3, vec3(1.0), combined * 0.7);
-    color = mix(vec3(0.6, 0.65, 0.7), color, combined);
+    color = mix(color * 0.2, vec3(1.0), combined * 0.8);
+    color = mix(vec3(0.5, 0.55, 0.6), color, combined);
     
     vec3 finalColor = color * combined * brightness;
     
+    // Apply black patches with color burn
+    float patches = blackPatches(pos, t) * blackPatchAmount;
+    vec3 patchColor = vec3(1.0 - patches); // Invert for burn effect
+    finalColor = colorBurn(finalColor, patchColor);
+    
+    // Additional darkening for patch areas
+    finalColor *= mix(1.0, 0.05, patches * blackPatchAmount);
+    
     // Glow - reduced for center
     float glow = exp(-length(vUv - 0.5) * 1.5) * 0.1 * centerFalloff;
-    finalColor += particleColor * glow * combined;
+    finalColor += particleColor * glow * combined * (1.0 - patches * 0.8);
     
     float alpha = combined * opacity;
+    
+    // Reduce alpha in black patch areas for more dramatic effect
+    alpha *= mix(1.0, 0.2, patches * blackPatchAmount * 0.5);
     
     if (alpha < 0.01) discard;
     
@@ -302,7 +362,7 @@ const fragmentShader = `
 
 const RichetMaterial = forwardRef(function RichetMaterial({
   particleDensity = 100.0,
-  particleSize = 1.0,
+  particleSize = 3.0,
   particleColor = "#ffffff",
   swirlingSpeed = 0.05,
   vortexStrength = 0.8,
@@ -313,8 +373,11 @@ const RichetMaterial = forwardRef(function RichetMaterial({
   dustAmount = .8,
   grainAmount = 0.7,
   fineDetailScale = 5.0,
-  brightness = 10.0,
+  brightness = 11.0,
   opacity = 1.0,
+  blackPatchAmount = 0.,
+  blackPatchScale = 0,
+  contrast = .095,
   depthTest = true,
   depthWrite = false,
   blendMode = THREE.AdditiveBlending,
@@ -351,6 +414,9 @@ const RichetMaterial = forwardRef(function RichetMaterial({
         fineDetailScale: { value: fineDetailScale },
         brightness: { value: brightness },
         opacity: { value: opacity },
+        blackPatchAmount: { value: blackPatchAmount },
+        blackPatchScale: { value: blackPatchScale },
+        contrast: { value: contrast },
       }}
       transparent
       depthTest={depthTest}
